@@ -3,6 +3,9 @@ Ben-FFT
 
 Work in progress!
 
+First test:
+http://youtu.be/K6OYtv0GYw8
+
 FFT for processing. I want to develop a fast Fourier transform FFT for processing from scratch.
 
 A fast Fourier transform (FFT) is an algorithm to compute the discrete Fourier transform (DFT) and its inverse.
