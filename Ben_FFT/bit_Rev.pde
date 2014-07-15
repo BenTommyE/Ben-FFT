@@ -1,8 +1,17 @@
-int getBitRevNr(int bitNr,int N) {
+void bitReversalSorting() {
+  //
+  for(int i = 0; i < N; i++) {
+    J = getBitRevNr(i,M);
+    arrayCopy(XR,J,ReX,i,1);   // ReX[i] = TR[0];
+    arrayCopy(XI,J,ImX,i,1);   // ImX[i] = TI[0];
+  }
+}
+
+int getBitRevNr(int bitNr,int M) {
   
   // calculate the revers number in fft sequence
   
-  int Ndigits = getNumberOfDigits(N);
+  int Ndigits = M;
   int revBitNr;
   int tempBit;
   int resultat = 0;
@@ -14,25 +23,4 @@ int getBitRevNr(int bitNr,int N) {
     }
   }
   return resultat;
-}
-
-int getNumberOfDigits(int _N) {
-  
-  // return number of digits i in binary format (inv 2^_N)
-  // and check if it's 1,2,4,8,16,31 ... Binary 0001, 0010, 0100, 1000..
-  // if not return 0
-  
-  int binaryPlaceTest = 0;
-  int binaryPlace = 0;
-
-  while(binaryPlaceTest<_N) {
-    binaryPlace++;
-    binaryPlaceTest = int(pow(2,binaryPlace));
-  }
-  
-  if(binaryPlaceTest == _N) {
-    return binaryPlace;
-  }else{
-    return 0;
-  }
 }
