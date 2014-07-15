@@ -42,14 +42,21 @@ void setInData() {
 }
 
 void drawArrGraph() {
-  stroke(255,0,0);
+  stroke(0,0,0);
   beginShape();
   for(int i = 0; i<ND2; i = i + 2) {
     curveVertex(i*2, (height/2-abs(ReX[i]) - abs(ImX[i]) )); // is also the last control point
   }
   endShape();
   
-  stroke(200,255,200);
+  stroke(255,0,0);
+  beginShape();
+  for(int i = 0; i<ND2; i = i + 2) {
+    curveVertex(i*2, (2*height/3-ReX[i])); // is also the last control point
+  }
+  endShape();
+  
+  stroke(0,255,0);
   beginShape();
   for(int i = 0; i<ND2; i = i + 2) {
     curveVertex(i*2, (2*height/3-ImX[i])); // is also the last control point
