@@ -14,6 +14,6 @@ http://www.dspguide.com
 
 CONTACTS
 --------
-Ben-FFT was sritten by:
+Ben-FFT was written by:
 Ben-Tommy Eriksen
 ben@nornet.no
