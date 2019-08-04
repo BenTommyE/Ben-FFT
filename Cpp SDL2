@@ -1,0 +1,260 @@
+#include "SDL2/SDL.h"
+#include <iostream>
+#include <cstdint>
+#include <chrono>
+
+
+int tid = 0;
+
+const int screenWidth = 1024;
+const int screenWidthD2 = screenWidth/2;
+
+const int screenHeight = 700;
+const int screenHeightD2 = screenHeight/2;
+
+const int N = 1024; //12*60+25;   // Periodetiden (i minutter) for tidevann er 12 timer og 25 minutter
+const int N2 = N * 2;
+int maxN = 8192;
+
+const float omega = N / 6.283185307179586;
+const float frequense = 10.0;
+
+float XR[ N ];                  // Input Time domain Real part - sample data Complex part
+float XI[ N ];                  // Input Time domain Imaginary - sample data Complex part
+float XOut[ N ];                // Output frequency domain lenght data
+float XAngel[ N ];              // Output frequency domain angel data
+float XAverage[ N ];            // Output frequency domain data
+
+float ReX[ N ];
+float ImX[ N ];
+float TR[ 1 ];
+float TI[ 1 ];
+
+int NM1 = N - 1;
+int NM2 = N - 2;
+int ND2 = N / 2;
+int M = round(log(N)/log(2));
+int J = ND2;
+
+const float PI = 3.14159265359;
+
+// FPS timer
+uint64_t currentTime;
+uint64_t lastTime = 0;              // will store last time value was sendt
+uint64_t interval = 10;           // interval at which to send result
+
+
+long timeSinceEpochMillisec() {
+    using namespace std::chrono;
+    return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+}
+
+float sqrtPluss(float value) {
+    if(value < 0) {
+        return -sqrt(-value);
+    }
+    return sqrt(value);
+}
+
+bool timeIntervall() {
+    currentTime = timeSinceEpochMillisec();
+    
+    // Chedk if it's time to make an interupt
+    if(currentTime - lastTime >= interval) {
+        lastTime = lastTime + interval;
+        //std::cout << "timeSinceEpochMillisec: " << currentTime << std::endl;
+        //std::cout << "timeSinceEpochMillisec: " << lastTime << std::endl;
+        //std::cout << "timeSinceEpochMillisec: " << interval << std::endl;
+        
+        return true;
+        
+    }else if(currentTime<lastTime) {
+        // After 50 day millis() will start 0 again
+        lastTime = 0;
+        
+    }
+    return false;
+    
+}
+
+float sq(float valueToBeSq) {
+    return valueToBeSq * valueToBeSq;
+}
+
+int getBitRevNr(int bitNr, int M) {
+    
+    // calculate the revers number in fft sequence
+    
+    int Ndigits = M;                                  // Number of digits in the binary format of sample count N
+    int revBitNr;
+    int tempBit;
+    int resultat = 0;
+    for (int iBit = 0; iBit<Ndigits; iBit++) {         // search bit for bit from right to left
+        tempBit = bitNr & int(pow(2, iBit));             // take out current bit value
+        if (tempBit>0) {                                 // if bit value = 1
+            revBitNr = Ndigits - iBit - 1;                // calculate rev bit place
+            resultat = resultat | int(pow(2, revBitNr));   // put current bit in new place in result (with or)
+        }
+    }
+    return resultat;
+}
+
+void fft() {
+    
+    // Moving data from XR and MI to ReX and ImX and reverse place them
+    for (int i = 0; i < N; i++) {
+        J = getBitRevNr(i, M);
+        ReX[ i ] = XR[ J ];   // ReX[i] = TR[0];
+        ImX[ i ] = XI[ J ];   // ImX[i] = TI[0];
+    }
+    
+    // Start FFT calculation
+    int LE, LE2;
+    float UR, UI, SR, SI, TR, TI;
+    float Now = 0;
+    
+
+    for (int L = 1; L<=M; L++) {
+        LE = int(pow(2, L));
+        LE2 = LE/2;
+        UR = 1.0;
+        UI = 0;
+        SR = cos(PI/LE2);
+        SI = -sin(PI/LE2);
+        
+        for (int J = 1; J<LE2; J++) {
+            int JM1 = J-1;
+            for (int i = JM1; i<=NM1; i = i + LE) {
+                int IP = i + LE2;
+                TR = ReX[IP] * UR - ImX[IP] * UI;
+                TI = ReX[IP] * UI + ImX[IP] * UR;
+                ReX[IP] = ReX[i] - TR;
+                ImX[IP] = ImX[i] - TI;
+                ReX[i] = ReX[i] + TR;
+                ImX[i] = ImX[i] + TI;
+            }
+            TR = UR;
+            UR = TR*SR - UI*SI;
+            UI = TR*SI + UI*SR;
+        }
+    }
+    
+    
+    for (int L = 1; L<=NM1; L++) {
+        Now = sqrt(sq(ReX[L]) + sq(ImX[L]));
+        
+  
+        XOut[L] = Now;
+        //XAngel[L] = atan(ReX[L] / ImX[L]);
+        //PVector tempVvektor = new PVector(ImX[L], ReX[L]);
+        //XAngel[L] = tempVvektor.heading();
+        //XAngel[L] = -TWO_PI;
+    }
+    
+
+}
+
+//
+void update() {
+    fft();
+    
+    //Move left
+    for(int t = 1; t<N; t++) {
+        XR[t-1] = XR[t];
+    }
+    XR[ N-1 ] = 0.6 * (0.5 * sin(frequense * tid/omega) + 1.0 * sin(2 * frequense * tid/omega) + 0.5 * sin(6 * frequense * tid/omega));
+    tid++;
+}
+
+float fastMap(float value, float aMin, float aMax, float bMin, float bMax) {
+    
+    float delta = (bMax - bMin) / (aMax - aMin);
+    return (delta * (value - aMin) + bMin);
+}
+
+void drawGraphics(SDL_Renderer* renderer) {
+    
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
+    SDL_RenderClear(renderer);
+    
+    SDL_SetRenderDrawColor(renderer, 0, 40, 80, SDL_ALPHA_OPAQUE);
+    SDL_RenderDrawLine(renderer, 0, screenHeightD2, screenWidth, screenHeightD2);
+    
+
+    //Render ocean
+    SDL_SetRenderDrawColor(renderer, 128, 168, 255, SDL_ALPHA_OPAQUE);
+    for(int t = 1; t<N; t++) {
+        
+        //waterLevelOcean = poolDepth + 2.0 * sin(t/omega+offset1);
+        
+        float y1 = fastMap( XR[t], -1, 1,  screenHeightD2, 0);
+        float y2 = fastMap( XR[t-1], -1, 1,  screenHeightD2, 0);
+        
+        SDL_RenderDrawLine(renderer, t, y1, t-1, y2);
+        
+    }
+    
+    SDL_SetRenderDrawColor(renderer, 255, 128, 128, SDL_ALPHA_OPAQUE);
+    for(int t = 1; t<ND2; t++) {
+        
+        //waterLevelOcean = poolDepth + 2.0 * sin(t/omega+offset1);
+        
+        float y1 = fastMap( XOut[t], -20, 200,  screenHeight, screenHeightD2);
+        float y2 = fastMap( XOut[t-1], -20, 200,  screenHeight, screenHeightD2);
+        
+        SDL_RenderDrawLine(renderer, 2 * t, y1, 2 * (t-1), y2);
+        
+    }
+    
+    SDL_RenderPresent(renderer);
+}
+
+void setup() {
+
+    //Init timer
+    currentTime = timeSinceEpochMillisec();
+    lastTime = currentTime;
+}
+
+
+int main(int argc, char* argv[])
+{
+    
+    if (SDL_Init(SDL_INIT_VIDEO) == 0) {
+        SDL_Window* window = NULL;
+        SDL_Renderer* renderer = NULL;
+        
+        setup();
+        
+        if (SDL_CreateWindowAndRenderer(screenWidth, screenHeight, 0, &window, &renderer) == 0) {
+            SDL_bool done = SDL_FALSE;
+            
+            while (!done) {
+                SDL_Event event;
+                
+                if( timeIntervall() ) {             //Run opdate sreen at constant fps
+                    
+                    update();
+                    
+                    drawGraphics(renderer);
+                    
+                }
+                
+                while (SDL_PollEvent(&event)) {
+                    if (event.type == SDL_QUIT) {
+                        done = SDL_TRUE;
+                    }
+                }
+            }
+        }
+        
+        if (renderer) {
+            SDL_DestroyRenderer(renderer);
+        }
+        if (window) {
+            SDL_DestroyWindow(window);
+        }
+    }
+    SDL_Quit();
+    return 0;
+}
